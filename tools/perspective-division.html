@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Perspective Division</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/common.css">
+<style>:root{--text-primary:var(--ink);--text-secondary:var(--muted);--border:var(--rule);--font-mono:var(--mono)}</style>
+</head><body><main>
+<header>
+  <a class="back" href="../index.html">← ICG visualization toolkit</a>
+  <h1>Perspective Division</h1>
+  <p class="lede">A matrix can only multiply and add, but perspective needs y ÷ distance. The perspective matrix copies the distance into w, and the pipeline then divides everything by w. Move the point and follow the numbers.</p>
+</header>
+<style>
+.wd{font-size:14px;color:var(--text-primary)}
+.wd .row{display:grid;grid-template-columns:150px minmax(0,1fr) 54px;gap:8px;align-items:center;margin:6px 0;font-size:13px;color:var(--text-secondary)}
+.wd .row .v{text-align:right;color:var(--text-primary);font-variant-numeric:tabular-nums}
+.wd .svgw{overflow-x:auto}.wd .svgw svg{display:block;width:100%;min-width:560px}
+.wd .calc{font-family:var(--font-mono,ui-monospace,monospace);font-size:14px;line-height:1.8;padding:10px 14px;border:0.5px solid var(--border);border-radius:8px;overflow-x:auto;white-space:pre;margin-top:8px}
+.wd .calc .w{background:#FAEEDA;color:#633806;border-radius:3px;padding:0 3px}
+.wd .calc .out{color:#993C1D}
+</style>
+<div class="wd">
+<h2 class="sr-only" style="position:absolute;left:-9999px">Interactive side view showing how the perspective matrix copies distance into w and the division by w shrinks far points.</h2>
+<div class="row"><label for="dd">Distance from eye (−z)</label><input type="range" id="dd" min="1" max="6" step="0.1" value="4"><span class="v" id="ddv"></span></div>
+<div class="row"><label for="yy">Height y of the point</label><input type="range" id="yy" min="0" max="2.2" step="0.05" value="1"><span class="v" id="yyv"></span></div>
+<div class="svgw"><svg viewBox="0 0 680 300" role="img"><title>Perspective division side view</title><desc>Eye at left, near plane at distance 1, far plane at 6. A ray from the eye through the point hits the near plane at height y divided by distance.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<g id="G"></g></svg></div>
+<div class="calc" id="calc"></div>
+</div>
+<script>
+const NS='http://www.w3.org/2000/svg',$=id=>document.getElementById(id);
+const n=1,f=6,tanA=0.4,sz=-1.4,tz=-2.4;
+const P=(d,y)=>[40+d*60,150-y*60];
+function el(t,a){const x=document.createElementNS(NS,t);for(const k in a)x.setAttribute(k,a[k]);$('G').appendChild(x);return x}
+function tx(x,y,s,c){const e=el('text',{x,y,class:c||'ts'});e.textContent=s}
+const r2=v=>(Math.round(v*100)/100).toFixed(2);
+function draw(){
+const d=+$('dd').value,y=+$('yy').value;$('ddv').textContent=d.toFixed(1);$('yyv').textContent=y.toFixed(2);
+$('G').innerHTML='';
+const e=P(0,0),ft=P(f,tanA*f),fb=P(f,-tanA*f),nt=P(n,tanA*n),nb=P(n,-tanA*n);
+el('polygon',{points:[nt,ft,fb,nb].map(p=>p.join(',')).join(' '),fill:'#7F77DD','fill-opacity':.1,stroke:'#7F77DD','stroke-width':1});
+el('line',{x1:e[0],y1:e[1],x2:ft[0],y2:ft[1],stroke:'#888780','stroke-width':0.6,'stroke-dasharray':'2 4'});
+el('line',{x1:e[0],y1:e[1],x2:fb[0],y2:fb[1],stroke:'#888780','stroke-width':0.6,'stroke-dasharray':'2 4'});
+el('line',{x1:nt[0],y1:nt[1]-6,x2:nb[0],y2:nb[1]+6,stroke:'#7F77DD','stroke-width':2.5});
+tx(nt[0]-30,nb[1]+24,'near plane');tx(ft[0]+6,ft[1]+12,'far');
+el('circle',{cx:e[0],cy:e[1],r:5,fill:'#888780'});tx(e[0]-10,e[1]+22,'eye');
+const ax=P(6.5,0);el('line',{x1:e[0],y1:e[1],x2:ax[0],y2:ax[1],stroke:'#888780','stroke-width':0.8,'marker-end':'url(#arrow)'});tx(ax[0]-40,ax[1]+16,'−z (depth)');
+const p=P(d,y),base=P(d,0);
+el('line',{x1:base[0],y1:base[1],x2:p[0],y2:p[1],stroke:'#D85A30','stroke-width':3,'stroke-linecap':'round'});
+const hitY=y/d,h=P(n,hitY);
+el('line',{x1:e[0],y1:e[1],x2:p[0],y2:p[1],stroke:'#EF9F27','stroke-width':1.2});
+el('circle',{cx:p[0],cy:p[1],r:5,fill:'#D85A30'});tx(p[0]+8,p[1]-6,'P','th');
+el('circle',{cx:h[0],cy:h[1],r:4,fill:'#EF9F27'});
+const inside=y<=tanA*d+1e-9;
+if(!inside)tx(p[0]+8,p[1]+12,'outside the frustum: clipped');
+const bx=560,top=150-110,bot=150+110;
+el('line',{x1:bx,y1:top,x2:bx,y2:bot,stroke:'#7F77DD','stroke-width':2.5});
+tx(bx-60,top-30,'Near plane, magnified');tx(bx-60,top-16,'(= what ends up on screen)');
+const yN=hitY/(tanA*n),hy=150-Math.max(-1.15,Math.min(1.15,yN))*110;
+el('line',{x1:bx-14,y1:150,x2:bx-14,y2:hy,stroke:'#D85A30','stroke-width':3,'stroke-linecap':'round',opacity:inside?1:.35});
+el('circle',{cx:bx,cy:hy,r:4,fill:'#EF9F27'});
+tx(bx+10,top+4,'+1');tx(bx+10,bot+4,'−1');tx(bx+10,hy+4,'y = '+r2(yN));
+const z=-d,zp=sz*z+tz,w=-z;
+$('calc').innerHTML=
+`eye coords      (x, y, z, 1)          = (0, ${r2(y)}, ${r2(z)}, 1)
+× matrix N      row 4 = [0 0 −1 0]    → w = −z = <span class="w">${r2(w)}</span>
+clip coords     (x, y, z', w)         = (0, ${r2(y)}, ${r2(zp)}, <span class="w">${r2(w)}</span>)
+÷ w             (x/w, y/w, z'/w)      = (0, <span class="out">${r2(y/w)}</span>, ${r2(zp/w)})
+                y/w = ${r2(y)} / ${r2(w)} = <span class="out">${r2(y/w)}</span>  ← the height where the ray hits the near plane`;
+}
+$('dd').addEventListener('input',draw);$('yy').addEventListener('input',draw);draw();
+</script>
+
+</main></body></html>
