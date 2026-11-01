@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Orbit Animation Builder</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/common.css">
+<style>:root{--text-primary:var(--ink);--text-secondary:var(--muted);--border:var(--rule);--bg-accent:var(--hl);--text-accent:var(--ink);--border-accent:var(--z);--font-mono:var(--mono)}</style>
+</head><body><main>
+<header>
+  <a class="back" href="../index.html">← ICG visualization toolkit</a>
+  <h1>Orbit Animation Builder</h1>
+  <p class="lede">Build the turtle's matrix one factor at a time, reading right to left. Compare it against common wrong orders, attach the clownfish, and look through the fish's eye with Inv(M_fish). Based on the 2025 midterm Q5.</p>
+</header>
+<style>
+.an{font-size:14px;color:var(--text-primary)}
+.an .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}
+.an .lb{font-size:12px;color:var(--text-secondary);width:64px}
+.an button{font-size:13px;padding:5px 10px}
+.an button.on{background:var(--bg-accent);color:var(--text-accent);border-color:var(--border-accent)}
+.an .expr{font-family:var(--font-mono,ui-monospace,monospace);font-size:15px;padding:10px 12px;border:0.5px solid var(--border);border-radius:8px;margin:6px 0;overflow-x:auto;white-space:nowrap}
+.an .expr span{padding:1px 4px;border-radius:4px;color:var(--text-secondary);opacity:.55}
+.an .expr span.done{opacity:1;color:var(--text-primary)}
+.an .expr span.now{opacity:1;background:#FAEEDA;color:#633806}
+.an .note{font-size:13px;color:var(--text-secondary);min-height:40px;margin:4px 0 0;line-height:1.55}
+.an .note b{color:var(--text-primary);font-weight:500}
+.an .svgw{overflow-x:auto}
+.an .svgw svg{display:block;width:100%;min-width:560px}
+.an .ro{font-size:13px;color:var(--text-secondary);font-variant-numeric:tabular-nums}
+</style>
+<div class="an">
+<h2 class="sr-only" style="position:absolute;left:-9999px">Step-by-step builder for the orbit animation matrix, with a turtle, an attached clownfish and the fish-eye view.</h2>
+<div class="row"><span class="lb">Version</span><span id="vars"></span></div>
+<div class="expr" id="expr"></div>
+<div class="row"><span class="lb">Build</span><button type="button" id="prev">◀ Undo factor</button><button type="button" id="next">Apply next factor ▶</button><span class="ro" id="stg"></span></div>
+<p class="note" id="note"></p>
+<div class="svgw"><svg viewBox="0 0 680 330" id="sv" role="img"><title>Turtle orbit scene and fish-eye view</title><desc>Left: world axes, orbit B and the turtle under the current matrix. Right: the scene as seen from the fish's eye.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<clipPath id="cpL"><rect x="0" y="0" width="450" height="330"/></clipPath><clipPath id="cpF"><rect x="462" y="42" width="206" height="206" rx="8"/></clipPath></defs>
+<g id="W" clip-path="url(#cpL)"></g>
+<rect x="461" y="41" width="208" height="208" rx="8" fill="none" stroke="#888780" stroke-width="0.5"/>
+<text class="ts" x="462" y="30">Fish-eye view = Inv(M_fish) · world</text>
+<g id="F" clip-path="url(#cpF)"></g>
+</svg></div>
+<div class="row"><span class="lb">Time</span><input type="range" id="t" min="0" max="354" step="6" value="48" style="flex:1;min-width:140px"><button type="button" id="play">Play</button></div>
+<div class="row"><span class="ro" id="ro"></span></div>
+<div class="row"><label style="display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" id="fish">Show the clownfish: M_fish = M_tur · T(0,e,0) · Ry(180) · Rz(w)</label></div>
+</div>
+<script>
+const d=3,rB=2,e=1.2,rad=x=>x*Math.PI/180;
+const I=()=>[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+const T=(x,y,z)=>[1,0,0,x,0,1,0,y,0,0,1,z,0,0,0,1];
+const Ry=a=>{const c=Math.cos(rad(a)),s=Math.sin(rad(a));return[c,0,s,0,0,1,0,0,-s,0,c,0,0,0,0,1]};
+const Rz=a=>{const c=Math.cos(rad(a)),s=Math.sin(rad(a));return[c,-s,0,0,s,c,0,0,0,0,1,0,0,0,0,1]};
+const mul=(A,B)=>{const C=new Array(16).fill(0);for(let i=0;i<4;i++)for(let j=0;j<4;j++)for(let k=0;k<4;k++)C[i*4+j]+=A[i*4+k]*B[k*4+j];return C};
+const ap=(M,p)=>[0,1,2].map(i=>M[i*4]*p[0]+M[i*4+1]*p[1]+M[i*4+2]*p[2]+M[i*4+3]);
+const inv=M=>{const o=I();for(let i=0;i<3;i++){for(let j=0;j<3;j++)o[i*4+j]=M[j*4+i];o[i*4+3]=-(M[i]*M[3]+M[4+i]*M[7]+M[8+i]*M[11])}return o};
+const fT={l:'T(0,0,−d)',m:()=>T(0,0,-d),w:'<b>T(0,0,−d)</b> moves the whole orbit so its center lands at O_B = (0, 0, −d).'};
+const fR={l:'Ry(u)',m:u=>Ry(u),w:'<b>Ry(u)</b> revolves the turtle u° about the y axis. Position and heading turn together, so it stays tangent to the orbit.'};
+const fP={l:'T(0,0,r_B)',m:()=>T(0,0,rB),w:'<b>T(0,0,r_B)</b> pushes it out by the radius to the front point of the orbit. That orbit is still centered on the origin.'};
+const f9={l:'Ry(90)',m:()=>Ry(90),w:'<b>Ry(90)</b> turns the turtle from facing +z to facing +x, the tangent direction at the starting point.'};
+const VAR={
+ok:{n:'Correct',fs:[fT,fR,fP,f9],bug:'Correct: the turtle travels around B, centered at O_B, always facing along the path. Press Play.'},
+swap:{n:'Swap Ry(u) and T(r_B)',fs:[fT,fP,Object.assign({},fR,{w:'<b>Ry(u)</b> is applied while the turtle is still at the origin, so it only spins on the spot.'}),f9],bug:'Bug: Ry(u) runs before the push-out, so the turtle spins in place at the front of the orbit and never travels around it.'},
+noface:{n:'Forget Ry(90)',fs:[fT,fR,fP],bug:'Bug: without Ry(90) the turtle keeps facing +z, which at the start point is straight outward. It orbits correctly but always faces away from the center instead of along the path.'},
+center:{n:'Revolve about the wrong center',fs:[Object.assign({},fR,{w:'<b>Ry(u)</b> now runs after the orbit was moved, so it swings everything around the world y axis instead of O_B.'}),fT,fP,f9],bug:'Bug: the revolution happens about the world origin, so the actual path (orange) is a circle of radius d − r_B around O, not orbit B.'}};
+let vk='ok',stage=4,t=48,timer=null;
+const $=id=>document.getElementById(id);
+const vb=$('vars');Object.keys(VAR).forEach(k=>{const b=document.createElement('button');b.type='button';b.textContent=VAR[k].n;b.dataset.k=k;b.onclick=()=>{vk=k;stage=VAR[k].fs.length;draw()};vb.appendChild(b);vb.append(' ')});
+const P=p=>[200+(p[0]-0.45*p[2])*48,232-(p[1]-0.3*p[2])*48];
+const NS='http://www.w3.org/2000/svg';
+function el(g,t,a,st){const x=document.createElementNS(NS,t);for(const k in a)x.setAttribute(k,a[k]);if(st)x.setAttribute('style',st);g.appendChild(x);return x}
+function txt(g,p,s,cls,st){const x=el(g,'text',{x:p[0],y:p[1],class:cls||'ts'},st);x.textContent=s}
+function poly(g,pts,a){el(g,'polygon',Object.assign({points:pts.map(p=>P(p).join(',')).join(' ')},a))}
+function ln(g,a,b,at){const A=P(a),B=P(b);el(g,'line',Object.assign({x1:A[0],y1:A[1],x2:B[0],y2:B[1]},at))}
+const TUR=[[0,0,0.9],[0.5,0,0.1],[0.32,0,-0.65],[-0.32,0,-0.65],[-0.5,0,0.1]];
+const FB=[[0,0,-0.7],[0.25,0,0],[0,0,0.45],[-0.25,0,0]],FF=[[0,0,-0.15],[0,0.42,0.15],[0,0,0.35]];
+function Mof(k,u,s){const fs=VAR[k].fs,n=fs.length;let M=I();for(let i=n-s;i<n;i++)M=mul(M,fs[i].m(u));return M}
+function draw(){
+const v=VAR[vk],fs=v.fs,n=fs.length,u=t,w=(2*t)%360;stage=Math.max(0,Math.min(n,stage));
+document.querySelectorAll('#vars button').forEach(b=>b.classList.toggle('on',b.dataset.k===vk));
+$('expr').innerHTML='M_tur = '+fs.map((f,i)=>`<span class="${i>n-stage?'done':i===n-stage?'now':''}">${f.l}</span>`).join(' · ');
+$('stg').textContent=`factor ${stage} of ${n} applied (right to left)`;
+$('note').innerHTML=stage===0?'The turtle model as loaded: centered at the origin, facing +z. Press <b>Apply next factor</b> to apply the rightmost factor.':(stage===n?fs[0].w+'<br>'+v.bug:fs[n-stage].w);
+$('ro').textContent=`t = ${t} ms   ·   u = ${u}° (6° per 6 ms step)   ·   fish roll w = ${w}° (12° per step)`;
+const W=$('W');W.innerHTML='';
+[[[3.2,0,0],'#D85A30','x'],[[0,2.6,0],'#1D9E75','y'],[[0,0,3.2],'#7F77DD','z']].forEach(([a,c,l])=>{ln(W,[0,0,0],a,{stroke:c,'stroke-width':1.5,'marker-end':'url(#arrow)'});ln(W,[0,0,0],a.map(x=>-x*0.35),{stroke:c,'stroke-width':1,'stroke-dasharray':'3 3',opacity:.6});const q=P(a);txt(W,[q[0]+6,q[1]+4],l,'th')});
+const ob=[];for(let i=0;i<=64;i++){const a=2*Math.PI*i/64;ob.push(P([rB*Math.sin(a),0,-d+rB*Math.cos(a)]))}
+el(W,'polyline',{points:ob.map(p=>p.join(',')).join(' '),fill:'none',stroke:'#888780','stroke-width':1,'stroke-dasharray':'2 4'});
+const lb=P([rB*0.72,0,-d-rB*0.72]);txt(W,[lb[0]+6,lb[1]-4],'orbit B');
+const oc=P([0,0,-d]);el(W,'circle',{cx:oc[0],cy:oc[1],r:3,fill:'#888780'});txt(W,[oc[0]+6,oc[1]+14],'O_B');
+const o0=P([0,0,0]);txt(W,[o0[0]-16,o0[1]+14],'O');
+if(stage===n){const pa=[];for(let a=0;a<=360;a+=6)pa.push(P(ap(Mof(vk,a,n),[0,0,0])));el(W,'polyline',{points:pa.map(p=>p.join(',')).join(' '),fill:'none',stroke:'#EF9F27','stroke-width':1.5,'stroke-dasharray':'5 4',opacity:.8})}
+const drawTur=(M,ghost)=>{poly(W,TUR.map(p=>ap(M,p)),ghost?{fill:'none',stroke:'#1D9E75','stroke-width':1,'stroke-dasharray':'3 3',opacity:.6}:{fill:'#1D9E75','fill-opacity':.75,stroke:'#0F6E56','stroke-width':1});
+if(!ghost){ln(W,ap(M,[0,0,0]),ap(M,[0,0,1.5]),{stroke:'#0F6E56','stroke-width':1.5,'marker-end':'url(#arrow)'});const c=P(ap(M,[0,0,0]));el(W,'circle',{cx:c[0],cy:c[1],r:2.5,fill:'#0F6E56'})}};
+if(stage>0&&stage<n)drawTur(Mof(vk,u,stage-1),true);
+const M=Mof(vk,u,stage);drawTur(M,false);
+const F=$('F');F.innerHTML='';
+if($('fish').checked&&stage===n){const Mf=mul(M,mul(T(0,e,0),mul(Ry(180),Rz(w))));
+ln(W,ap(M,[0,0,0]),ap(Mf,[0,0,0]),{stroke:'#888780','stroke-width':1,'stroke-dasharray':'3 3'});const em=P(ap(M,[0,e/2,0]));txt(W,[em[0]+6,em[1]],'e');
+poly(W,FB.map(p=>ap(Mf,p)),{fill:'#D85A30','fill-opacity':.8,stroke:'#993C1D','stroke-width':1});poly(W,FF.map(p=>ap(Mf,p)),{fill:'#F5C4B3',stroke:'#993C1D','stroke-width':1});
+const V=inv(Mf),fe=p=>{const q=ap(V,p);return q[2]<-0.08?[565+45*q[0]/(-q[2]),145-45*q[1]/(-q[2])]:null};
+const seg=(a,b,at,k)=>{k=k||10;for(let i=0;i<k;i++){const p=a.map((x,j)=>x+(b[j]-x)*i/k),q=a.map((x,j)=>x+(b[j]-x)*(i+1)/k),A=fe(p),B=fe(q);if(A&&B)el(F,'line',Object.assign({x1:A[0],y1:A[1],x2:B[0],y2:B[1]},at))}};
+for(let i=0;i<64;i++){const a1=2*Math.PI*i/64,a2=2*Math.PI*(i+1)/64;seg([rB*Math.sin(a1),0,-d+rB*Math.cos(a1)],[rB*Math.sin(a2),0,-d+rB*Math.cos(a2)],{stroke:'#888780','stroke-width':1},2)}
+[[[3.2,0,0],'#D85A30'],[[0,2.6,0],'#1D9E75'],[[0,0,3.2],'#7F77DD']].forEach(([a,c])=>seg(a.map(x=>-x*0.35),a,{stroke:c,'stroke-width':1.5},24));
+const tw=TUR.map(p=>ap(M,p));for(let i=0;i<tw.length;i++)seg(tw[i],tw[(i+1)%tw.length],{stroke:'#1D9E75','stroke-width':2},12);
+seg(ap(M,[0,0,0]),ap(M,[0,0,1.5]),{stroke:'#0F6E56','stroke-width':1.5},12);
+el(F,'line',{x1:559,y1:145,x2:571,y2:145,stroke:'#888780','stroke-width':1});el(F,'line',{x1:565,y1:139,x2:565,y2:151,stroke:'#888780','stroke-width':1});
+txt(F,[470,62],'The world rolls as the fish rolls','ts')}
+else{txt(F,[478,140],stage===n?'Turn on the clownfish':'Finish building M_tur','ts');txt(F,[478,158],'to look through its eye','ts')}
+}
+$('prev').onclick=()=>{stage--;draw()};$('next').onclick=()=>{stage++;draw()};
+$('t').addEventListener('input',()=>{t=+$('t').value;draw()});$('fish').addEventListener('change',draw);
+$('play').onclick=()=>{if(timer){clearInterval(timer);timer=null;$('play').textContent='Play'}else{stage=VAR[vk].fs.length;timer=setInterval(()=>{t=(t+6)%360;$('t').value=t;draw()},90);$('play').textContent='Pause'}};
+draw();
+</script>
+
+</main></body></html>
