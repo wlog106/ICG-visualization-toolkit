@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Phong Sphere Lab</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/common.css">
+<style>
+.lab{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:24px;align-items:start;margin-top:1rem}
+@media(max-width:600px){.lab{grid-template-columns:1fr}}
+.ctl{display:grid;gap:12px;font-size:.88rem;color:var(--muted)}
+.ctl .r{display:grid;grid-template-columns:100px 1fr 44px;align-items:center;gap:8px}
+.ctl .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.chk{display:flex;gap:14px;flex-wrap:wrap}
+.chk label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+ul{padding-left:1.2rem}
+</style></head><body><main>
+<header>
+  <a class="back" href="../index.html">← ICG visualization toolkit</a>
+  <h1>Phong Sphere Lab</h1>
+  <p class="lede">A triangle-mesh sphere lit by the Phong reflection model. Switch terms on and off, and compare where the formula runs: per triangle (flat), per vertex (Gouraud), or per pixel (Phong shading).</p>
+</header>
+<div class="lab">
+<canvas id="cv" width="300" height="300" style="width:100%;max-width:300px;aspect-ratio:1"></canvas>
+<div class="ctl">
+<div><div style="margin-bottom:6px">Shading method (where the formula runs)</div>
+<div class="seg" id="mode"><button type="button" data-m="flat">Flat · per triangle</button><button type="button" data-m="gouraud">Gouraud · per vertex</button><button type="button" data-m="phong" class="on">Phong · per pixel</button></div></div>
+<div class="chk">
+<label><input type="checkbox" id="amb" checked><span class="sw" style="background:#888780"></span>Ambient</label>
+<label><input type="checkbox" id="dif" checked><span class="sw" style="background:#7F77DD"></span>Diffuse</label>
+<label><input type="checkbox" id="spe" checked><span class="sw" style="background:#EF9F27"></span>Specular</label>
+<label><input type="checkbox" id="wire"><span class="sw" style="border:1px solid var(--muted)"></span>Show triangles</label>
+</div>
+<div class="r"><label for="az">Light angle</label><input type="range" id="az" min="-80" max="80" value="40" step="1"><span class="v" id="azv"></span></div>
+<div class="r"><label for="res">Triangles</label><input type="range" id="res" min="3" max="24" value="8" step="1"><span class="v" id="resv"></span></div>
+<div class="r"><label for="ka">k_a ambient</label><input type="range" id="ka" min="0" max="0.5" value="0.15" step="0.01"><span class="v" id="kav"></span></div>
+<div class="r"><label for="kd">k_d diffuse</label><input type="range" id="kd" min="0" max="1" value="0.7" step="0.01"><span class="v" id="kdv"></span></div>
+<div class="r"><label for="ks">k_s specular</label><input type="range" id="ks" min="0" max="1" value="0.7" step="0.01"><span class="v" id="ksv"></span></div>
+<div class="r"><label for="al">α shininess</label><input type="range" id="al" min="1" max="200" value="40" step="1"><span class="v" id="alv"></span></div>
+</div></div>
+
+<h2>Things to try</h2>
+<ul>
+  <li>Turn on one term at a time. Ambient alone gives a flat disc, diffuse alone a lit side fading to dark, specular alone a white dot.</li>
+  <li>Drag α from 200 down to 5 and watch the highlight go from a sharp metal glint to a broad plastic sheen.</li>
+  <li>Set Triangles to about 5 and turn on Show triangles. Gouraud blurs or loses a highlight that falls inside a triangle. Phong shading keeps it.</li>
+  <li>Raise Triangles to about 20. All three methods converge, because tiny triangles make "per triangle" close to "per pixel".</li>
+</ul>
+<p><code>I = k_a·I_a + k_d·I_d·max(l·n,0) + k_s·I_s·max(r·v,0)^α</code>, with <code>r = 2(l·n)n − l</code>. The viewer looks along −z (orthographic), and the light is directional.</p>
+</main>
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),W=300,R=128,CX=150,CY=150;
+const $=id=>document.getElementById(id);let mode='phong';
+const C=[0.42,0.40,0.92];
+const nrm=a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return[a[0]/l,a[1]/l,a[2]/l]};
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+let L,P;
+function shade(n){const nl=dot(n,L);let c=[0,0,0];
+if(P.amb)for(let i=0;i<3;i++)c[i]+=P.ka*C[i];
+if(P.dif&&nl>0)for(let i=0;i<3;i++)c[i]+=P.kd*nl*C[i];
+if(P.spe&&nl>0){const rz=2*nl*n[2]-L[2];const s=P.ks*Math.pow(Math.max(rz,0),P.al);for(let i=0;i<3;i++)c[i]+=s}
+return c}
+function draw(){
+P={amb:$('amb').checked,dif:$('dif').checked,spe:$('spe').checked,ka:+$('ka').value,kd:+$('kd').value,ks:+$('ks').value,al:+$('al').value,res:+$('res').value,az:+$('az').value};
+$('azv').textContent=P.az+'°';$('resv').textContent=P.res;$('kav').textContent=P.ka.toFixed(2);$('kdv').textContent=P.kd.toFixed(2);$('ksv').textContent=P.ks.toFixed(2);$('alv').textContent=P.al;
+const a=P.az*Math.PI/180,e=35*Math.PI/180;L=nrm([Math.cos(e)*Math.sin(a),Math.sin(e),Math.cos(e)*Math.cos(a)]);
+const nLat=P.res,nLon=P.res*2,V=[];
+for(let i=0;i<=nLat;i++){const t=Math.PI*i/nLat;for(let j=0;j<=nLon;j++){const f=2*Math.PI*j/nLon;V.push([Math.sin(t)*Math.cos(f),Math.cos(t),Math.sin(t)*Math.sin(f)])}}
+const T=[];const id=(i,j)=>i*(nLon+1)+j;
+for(let i=0;i<nLat;i++)for(let j=0;j<nLon;j++){T.push([id(i,j),id(i+1,j),id(i+1,j+1)]);T.push([id(i,j),id(i+1,j+1),id(i,j+1)])}
+const VC=V.map(shade);
+const img=ctx.createImageData(W,W),d=img.data;const edges=[];
+const sx=p=>[CX+p[0]*R,CY-p[1]*R];
+T.forEach(t=>{const A=V[t[0]],B=V[t[1]],Cc=V[t[2]];
+let fn=nrm([(B[1]-A[1])*(Cc[2]-A[2])-(B[2]-A[2])*(Cc[1]-A[1]),(B[2]-A[2])*(Cc[0]-A[0])-(B[0]-A[0])*(Cc[2]-A[2]),(B[0]-A[0])*(Cc[1]-A[1])-(B[1]-A[1])*(Cc[0]-A[0])]);
+const cen=[(A[0]+B[0]+Cc[0])/3,(A[1]+B[1]+Cc[1])/3,(A[2]+B[2]+Cc[2])/3];if(dot(fn,cen)<0)fn=fn.map(x=>-x);if(fn[2]<=0)return;
+const a2=sx(A),b2=sx(B),c2=sx(Cc);const area=(b2[0]-a2[0])*(c2[1]-a2[1])-(b2[1]-a2[1])*(c2[0]-a2[0]);if(Math.abs(area)<1e-6)return;
+edges.push([a2,b2,c2]);const fc=mode==='flat'?shade(fn):null;
+const x0=Math.max(0,Math.floor(Math.min(a2[0],b2[0],c2[0]))),x1=Math.min(W-1,Math.ceil(Math.max(a2[0],b2[0],c2[0])));
+const y0=Math.max(0,Math.floor(Math.min(a2[1],b2[1],c2[1]))),y1=Math.min(W-1,Math.ceil(Math.max(a2[1],b2[1],c2[1])));
+for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const px=x+.5,py=y+.5;
+const w0=((b2[0]-px)*(c2[1]-py)-(b2[1]-py)*(c2[0]-px))/area,w1=((c2[0]-px)*(a2[1]-py)-(c2[1]-py)*(a2[0]-px))/area,w2=1-w0-w1;
+if(w0<-1e-6||w1<-1e-6||w2<-1e-6)continue;let c;
+if(mode==='flat')c=fc;else if(mode==='gouraud'){const ca=VC[t[0]],cb=VC[t[1]],cc=VC[t[2]];c=[0,1,2].map(k=>w0*ca[k]+w1*cb[k]+w2*cc[k])}
+else c=shade(nrm([0,1,2].map(k=>w0*A[k]+w1*B[k]+w2*Cc[k])));
+const o=(y*W+x)*4;d[o]=Math.min(255,c[0]*255);d[o+1]=Math.min(255,c[1]*255);d[o+2]=Math.min(255,c[2]*255);d[o+3]=255}});
+ctx.clearRect(0,0,W,W);ctx.putImageData(img,0,0);
+if($('wire').checked){ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=0.6;edges.forEach(e=>{ctx.beginPath();ctx.moveTo(e[0][0],e[0][1]);ctx.lineTo(e[1][0],e[1][1]);ctx.lineTo(e[2][0],e[2][1]);ctx.closePath();ctx.stroke()})}
+const lx=CX+L[0]*R*1.08,ly=CY-L[1]*R*1.08;ctx.fillStyle='#EF9F27';ctx.beginPath();ctx.arc(Math.min(Math.max(lx,10),W-10),Math.max(ly,10),7,0,7);ctx.fill()}
+document.querySelectorAll('#mode button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;document.querySelectorAll('#mode button').forEach(x=>x.classList.toggle('on',x===b));draw()});
+document.querySelectorAll('.ctl input').forEach(i=>i.addEventListener('input',draw));
+draw();
+</script></body></html>

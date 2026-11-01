@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Projection Explorer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column on blueprint-cool paper; x/y/z axis colors are the only accents */
+:root{
+  --bg:#F3F5F8; --panel:#FFFFFF; --ink:#16202E; --muted:#56637A; --rule:#D5DCE6;
+  --x:#D85A30; --y:#1D9E75; --z:#6E66D4; --hl:#EAE8FC;
+  --ok:#1F7A4D; --okbg:#E3F3EA; --bad:#B23A3A; --badbg:#FBE7E7;
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151D; --panel:#18202B; --ink:#E4E9F1; --muted:#9AA7BB; --rule:#2C3746;
+  --x:#F0875F; --y:#4CC79D; --z:#A49DF0; --hl:#2A2752;
+  --ok:#6FD3A0; --okbg:#173326; --bad:#F09595; --badbg:#3A1C1C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151D; --panel:#18202B; --ink:#E4E9F1; --muted:#9AA7BB; --rule:#2C3746;
+  --x:#F0875F; --y:#4CC79D; --z:#A49DF0; --hl:#2A2752;
+  --ok:#6FD3A0; --okbg:#173326; --bad:#F09595; --badbg:#3A1C1C; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.65 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 4rem}
+main{max-width:760px;margin:0 auto}
+header{padding-block:2.5rem 1.5rem;border-bottom:1px solid var(--rule)}
+h1{font:700 clamp(2rem,6vw,2.9rem)/1.05 var(--display);margin:0 0 .75rem;letter-spacing:-.02em;text-wrap:balance}
+h1 .ax{display:inline-flex;gap:4px;vertical-align:middle;margin-left:.4rem}
+h1 .ax i{width:10px;height:10px;border-radius:2px;display:block}
+h2{font:700 1.6rem/1.2 var(--display);margin:0 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h3{font:500 1.1rem/1.3 var(--display);margin:1.5rem 0 .4rem}
+.meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;font-size:.92rem;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:700}
+nav{display:flex;flex-wrap:wrap;gap:.5rem;padding-block:1rem;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5;border-bottom:1px solid var(--rule)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+nav a{font-size:.88rem;color:var(--ink);text-decoration:none;padding:.3rem .7rem;border:1px solid var(--rule);border-radius:999px;background:var(--panel)}
+nav a:hover,nav a:focus-visible{border-color:var(--z);outline:none}
+section{padding-block:2.5rem 1rem;border-bottom:1px solid var(--rule);scroll-margin-top:64px}
+.lede{color:var(--muted);margin:0 0 1.25rem;max-width:65ch}
+p{max-width:65ch}
+code,.m{font-family:var(--mono);font-size:.88em}
+pre{font:14px/1.5 var(--mono);background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:.75rem 1rem;overflow-x:auto;margin:.5rem 0}
+.eyebrow{font:500 .75rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--z);margin:0 0 .6rem}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin:1rem 0}
+.two>div{min-width:0;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:1rem 1.1rem}
+.two h4{font:500 1rem var(--display);margin:0 0 .4rem}
+.two ul{margin:0;padding-left:1.1rem}
+/* explorer */
+.btnrow{display:flex;flex-wrap:wrap;gap:6px;margin:.4rem 0}
+.btnrow span{font:500 .72rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;align-self:center;width:88px}
+button{font:inherit;font-size:.86rem;color:var(--ink);background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:.35rem .7rem;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:focus-visible{outline:2px solid var(--z);outline-offset:2px}
+button.on{background:var(--hl);border-color:var(--z);color:var(--ink)}
+.svgwrap{overflow-x:auto;margin:.75rem 0}
+.svgwrap svg{display:block;min-width:560px;width:100%}
+.ts{font:12px var(--body);fill:var(--muted)}
+.slider{display:flex;align-items:center;gap:.75rem;font-size:.88rem;color:var(--muted);margin:0 0 .75rem}.slider input{flex:1;max-width:320px}
+.legend{display:flex;flex-wrap:wrap;gap:.4rem 1.2rem;font-size:.82rem;color:var(--muted);margin-bottom:.75rem}
+.legend i{display:inline-block;width:16px;height:3px;vertical-align:middle;margin-right:5px}
+.info{display:grid;gap:0;border-top:1px solid var(--rule)}
+.info div{display:grid;grid-template-columns:170px minmax(0,1fr);gap:8px;padding:.5rem 0;border-bottom:1px solid var(--rule);font-size:.95rem}
+.info b{color:var(--muted);font-weight:400;font-size:.85rem}
+@media (max-width:520px){.info div{grid-template-columns:1fr;gap:2px}}
+/* practice */
+ol.prob{padding-left:1.3rem;margin:0}
+ol.prob>li{margin:0 0 1.4rem;padding-left:.3rem}
+ol.prob>li::marker{font:700 1rem var(--display);color:var(--z)}
+details{margin-top:.5rem;border:1px solid var(--rule);border-radius:8px;background:var(--panel)}
+summary{cursor:pointer;padding:.45rem .8rem;font-size:.88rem;color:var(--muted);list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+ ";font-family:var(--mono)}
+details[open] summary::before{content:"− "}
+details>div{padding:.1rem .9rem .8rem;border-top:1px solid var(--rule)}
+.tag{display:inline-block;font:500 .72rem var(--mono);padding:.1rem .45rem;border-radius:4px;margin-left:.4rem;vertical-align:2px}
+.tag.ok{background:var(--okbg);color:var(--ok)} .tag.bad{background:var(--badbg);color:var(--bad)}
+.warn{border-left:3px solid var(--x);padding:.2rem 0 .2rem .8rem;margin:.6rem 0;color:var(--ink)}
+.tbl{overflow-x:auto;margin:.5rem 0 1rem}
+table{border-collapse:collapse;width:100%;font-size:.92rem;min-width:460px}
+th,td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid var(--rule)}
+th{font:500 .75rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+td:nth-child(n+2){text-align:center;color:var(--z);font-variant-numeric:tabular-nums}
+th:nth-child(n+2){text-align:center}
+td a{color:var(--ink);text-decoration-color:var(--rule);text-underline-offset:3px}
+.ans{scroll-margin-top:70px}.ans details{margin-top:.6rem}
+.ans summary{color:var(--ink);font-weight:700}
+/* quiz */
+.qcard{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:1rem 1.1rem;margin:0 0 1rem}
+.qcard .qp{white-space:pre-wrap;margin:0 0 .6rem;font-weight:700}
+.qcard .qn{font:500 .75rem var(--mono);color:var(--muted)}
+.opts{display:grid;gap:6px}
+.opts button{text-align:left;padding:.5rem .75rem;font-size:.93rem;line-height:1.45}
+.opts button.right{background:var(--okbg);border-color:var(--ok);color:var(--ok)}
+.opts button.wrong{background:var(--badbg);border-color:var(--bad);color:var(--bad)}
+.exp{margin:.6rem 0 0;font-size:.92rem;color:var(--muted)}
+.score{display:flex;align-items:center;gap:1rem;margin:0 0 1rem;font-variant-numeric:tabular-nums}
+.score b{font:700 1.4rem var(--display)}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+</style>
+<style>body{margin:0}main{padding-top:1rem}</style>
+</head><body><main>
+<p style="margin:1rem 0 0"><a href="../index.html" style="color:var(--muted);font-size:.85rem">← ICG visualization toolkit</a></p>
+<section id="explorer">
+  <p class="eyebrow">Ch3 · Classical viewing</p>
+  <h2>Projection explorer</h2>
+  <p class="lede">Every projection name answers two questions: how the projectors travel, and how the object is turned relative to the plane. Click through the types and watch which one changes.</p>
+
+  <div class="two">
+    <div>
+      <h4>Principal directions and faces</h4>
+      <ul>
+        <li><b>Principal directions</b>: the object's own three edge directions (width <span style="color:var(--x)">x</span>, height <span style="color:var(--y)">y</span>, depth <span style="color:var(--z)">z</span>).</li>
+        <li><b>Principal faces</b>: the flat faces perpendicular to those directions (front/back, left/right, top/bottom).</li>
+      </ul>
+    </div>
+    <div>
+      <h4>The two questions</h4>
+      <ul>
+        <li><b>Projectors?</b> Converge at a COP → perspective. Parallel and ⟂ → orthographic. Parallel and slanted → oblique.</li>
+        <li><b>Orientation?</b> Face ∥ plane → multiview. Tilted: 3 equal angles iso, 2 di, 0 tri. Perspective: one vanishing point per principal direction not ∥ plane.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p><b>How to read it.</b> Panel 1 shows everything in 3D: the cube, the orange projectors, and the gray projection plane. The image is where the projectors hit the plane. Panel 2 is that same gray rectangle turned to face you, so it shows only the image. Corner <b>A</b> of the cube lands at <b>A′</b> in both panels.</p>
+  <div class="btnrow" id="btns"><span>Parallel</span></div>
+  <div class="btnrow" id="btns2"><span>Perspective</span></div>
+  <div class="svgwrap">
+  <svg viewBox="0 0 680 320" role="img" id="sv" aria-labelledby="svt">
+    <title id="svt">Side view of a cube, its projectors and the projection plane, next to the plane seen face-on</title>
+    <defs>
+      <clipPath id="cR"><rect x="410" y="28" width="260" height="282"/></clipPath>
+      <clipPath id="cL"><rect x="10" y="28" width="390" height="282"/></clipPath>
+      <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    </defs>
+    <rect x="10" y="28" width="390" height="282" rx="8" style="fill:var(--panel);stroke:var(--rule)"/>
+    <rect x="410" y="28" width="260" height="282" rx="8" style="fill:var(--panel);stroke:var(--rule)"/>
+    <text class="ts" x="14" y="18">1 · The whole setup, seen by a second camera</text>
+    <text class="ts" x="414" y="18">2 · The plane face-on = the image</text>
+    <g id="L" clip-path="url(#cL)"></g>
+    <g id="R" clip-path="url(#cR)"></g>
+  </svg>
+  </div>
+  <div class="slider"><label for="az">Turn the side camera</label><input type="range" id="az" min="0" max="360" value="55" step="1"><span id="azv" style="min-width:3ch;font-variant-numeric:tabular-nums">55°</span></div>
+  <div class="legend">
+    <span><i style="background:var(--x)"></i>x edges</span>
+    <span><i style="background:var(--y)"></i>y (vertical) edges</span>
+    <span><i style="background:var(--z)"></i>z (depth) edges</span>
+    <span><i style="background:#EF9F27"></i>projectors</span>
+    <span><i style="background:var(--z);opacity:.3;height:10px"></i>front principal face</span>
+  </div>
+  <div class="info" id="info"></div>
+</section>
+
+</main>
+<script>
+/* ---------- projection explorer ---------- */
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let C=[css('--x'),css('--y'),css('--z')];
+const M={
+front:{lab:'Multiview (front)',t:'o',yaw:0,p:0,fam:'Parallel → orthographic → multiview',pr:'Parallel, perpendicular (⟂) to the plane',fa:'Front face is parallel to the plane',vp:'None',n:'True shape and size, so you can measure it. Depth is invisible: the cube is just a square.'},
+iso:{lab:'Isometric',t:'o',yaw:45,p:35.264,fam:'Parallel → orthographic → axonometric → isometric',pr:'Parallel, perpendicular to the plane',fa:'None. Tilted so all 3 axes are equally shortened',vp:'None',n:'All 3 angles at the front corner are equal (120°). Parallel edges stay parallel.'},
+di:{lab:'Dimetric',t:'o',yaw:45,p:15,fam:'Parallel → orthographic → axonometric → dimetric',pr:'Parallel, perpendicular to the plane',fa:'None. Two axes are equally shortened',vp:'None',n:'Exactly 2 of the 3 corner angles are equal.'},
+tri:{lab:'Trimetric',t:'o',yaw:28,p:22,fam:'Parallel → orthographic → axonometric → trimetric',pr:'Parallel, perpendicular to the plane',fa:'None. All 3 axes are shortened differently',vp:'None',n:'No two corner angles are equal.'},
+obl:{lab:'Oblique',t:'b',yaw:0,p:0,fam:'Parallel → oblique',pr:'Parallel, but slanted (not ⟂) to the plane',fa:'Front face is parallel to the plane, so it keeps its true shape',vp:'None',n:'Front face undistorted, yet you still see the side and top. OpenGL does this with a shear H(θ,φ).'},
+p1:{lab:'1-point',t:'p',yaw:0,p:0,o:[1.3,-1.1,0],fam:'Perspective → 1-point',pr:'Converge at the center of projection (COP)',fa:'Front face is parallel to the plane',vp:'1 (depth edges only)',n:'x and y edges are parallel to the plane, so they stay parallel. Only depth edges converge.'},
+p2:{lab:'2-point',t:'p',yaw:35,p:0,o:[0,-1.8,0],fam:'Perspective → 2-point',pr:'Converge at the COP',fa:'No face, but the vertical direction is parallel to the plane',vp:'2 (x and z edges)',n:'Vertical edges stay vertical because the camera is not tilted.'},
+p3:{lab:'3-point',t:'p',yaw:35,p:32,o:[0,0,0],fam:'Perspective → 3-point',pr:'Converge at the COP',fa:'None. No principal direction is parallel to the plane',vp:'3 (every edge direction)',n:'Typical of looking up at, or down on, a tall building.'}};
+let cur='front';
+function mk(id,arr){const d=document.getElementById(id);arr.forEach(k=>{const b=document.createElement('button');b.type='button';b.textContent=M[k].lab;b.dataset.k=k;b.onclick=()=>{cur=k;draw()};d.appendChild(b)})}
+mk('btns',['front','iso','di','tri','obl']);mk('btns2',['p1','p2','p3']);
+const V=[];for(let i=0;i<8;i++)V.push([(i&1)?1:-1,(i&2)?1:-1,(i&4)?1:-1]);
+const E=[];for(let i=0;i<8;i++)for(let k=0;k<3;k++){const j=i^(1<<k);if(j>i)E.push([i,j,k])}
+const r=d=>d*Math.PI/180;
+function rot(v,m){const cy=Math.cos(r(m.yaw)),sy=Math.sin(r(m.yaw)),cp=Math.cos(r(m.p)),sp=Math.sin(r(m.p));
+const x1=v[0]*cy+v[2]*sy,z1=-v[0]*sy+v[2]*cy;return[x1,v[1]*cp-z1*sp,v[1]*sp+z1*cp]}
+function ns(t,a,st){const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);if(st)e.setAttribute('style',st);return e}
+const H=1.5,D=3,ZC=-3.6,OA=0.35,OB=0.25,PW=3.5,PH=2.8,OR='#EF9F27';
+function world(v,m){const s=v.map(c=>c*H);const w=m.t==='b'?s:rot(s,m);const o=m.o||[0,0,0];return[w[0]+o[0],w[1]+o[1],w[2]+ZC]}
+function proj(p,m){if(m.t==='o')return[p[0],p[1]];if(m.t==='b')return[p[0]-p[2]*OA,p[1]-p[2]*OB];const t=D/(D-p[2]);return[p[0]*t,p[1]*t]}
+const az=document.getElementById('az');
+function obs(p){const A=r(+az.value),El=r(15);const x=p[0],y=p[1],z=p[2]+0.8;const x1=x*Math.cos(A)+z*Math.sin(A),z1=-x*Math.sin(A)+z*Math.cos(A);const y2=y*Math.cos(El)-z1*Math.sin(El);return[205+x1*28,172-y2*28]}
+const rp=q=>[540+q[0]*22,172-q[1]*22];
+function ln(g,a,b,stroke,w,extra,st){g.appendChild(ns('line',Object.assign({x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:stroke,'stroke-width':w,'stroke-linecap':'round'},extra||{}),st))}
+function lbl(g,p,t,dx,dy,st){const e=ns('text',{class:'ts',x:p[0]+dx,y:p[1]+dy},st);e.textContent=t;g.appendChild(e)}
+function dot(g,p,rad,fill,st){g.appendChild(ns('circle',fill?{cx:p[0],cy:p[1],r:rad,fill:fill}:{cx:p[0],cy:p[1],r:rad},st))}
+function draw(){
+C=[css('--x'),css('--y'),css('--z')];
+document.querySelectorAll('.btnrow button').forEach(b=>b.classList.toggle('on',b.dataset.k===cur));
+const m=M[cur],R=document.getElementById('R'),L=document.getElementById('L');R.innerHTML='';L.innerHTML='';
+const W=V.map(v=>world(v,m)),Q=W.map(p=>proj(p,m)),Q3=Q.map(q=>[q[0],q[1],0]);
+const vps=[];if(m.t==='p')for(let k=0;k<3;k++){const e=[0,0,0];e[k]=1;let d=rot(e,m);if(Math.abs(d[2])<1e-4)continue;if(d[2]>0)d=d.map(c=>-c);vps.push({k,x:D*d[0]/(-d[2]),y:D*d[1]/(-d[2])})}
+const planeSt='fill:var(--ink);fill-opacity:.07;stroke:var(--muted);stroke-width:1';
+/* left: the whole setup from a side camera */
+E.forEach(e=>ln(L,obs(W[e[0]]),obs(W[e[1]]),C[e[2]],2));
+W.forEach((p,i)=>ln(L,obs(p),obs(Q3[i]),OR,1.1));
+L.appendChild(ns('polygon',{points:[[-PW,-PH],[PW,-PH],[PW,PH],[-PW,PH]].map(c=>obs([c[0],c[1],0]).join(',')).join(' ')},planeSt));
+lbl(L,obs([-PW,-PH,0]),'Projection plane',4,16);
+E.forEach(e=>ln(L,obs(Q3[e[0]]),obs(Q3[e[1]]),C[e[2]],1.3));
+if(m.t==='p'){const c=obs([0,0,D]);Q3.forEach(q=>ln(L,obs(q),c,OR,0.9,{'stroke-dasharray':'3 3'}));dot(L,c,5,null,'fill:var(--ink)');lbl(L,c,'COP (eye)',8,16)}
+else{const dir=m.t==='b'?[OA,OB,1]:[0,0,1],k=1.8;Q3.forEach(q=>ln(L,obs(q),obs([q[0]+dir[0]*k,q[1]+dir[1]*k,dir[2]*k]),OR,0.9,{'stroke-dasharray':'3 3'}));
+const t=obs([Q3[7][0]+dir[0]*k,Q3[7][1]+dir[1]*k,k]);lbl(L,t,'DOP: all parallel',6,-4)}
+const a=obs(W[7]),a2=obs(Q3[7]);dot(L,a,3.5,null,'fill:var(--ink)');lbl(L,a,'A',-12,-6,'fill:var(--ink);font-weight:700');dot(L,a2,3.5,null,'fill:var(--ink)');lbl(L,a2,'A′',6,-6,'fill:var(--ink);font-weight:700');
+/* right: the same plane seen face-on */
+const p0=rp([-PW,PH]),p1=rp([PW,-PH]);
+R.appendChild(ns('rect',{x:p0[0],y:p0[1],width:p1[0]-p0[0],height:p1[1]-p0[1]},planeSt));
+lbl(R,p0,'Projection plane',4,-6);
+vps.forEach(v=>{const vp=rp([v.x,v.y]);E.filter(e=>e[2]===v.k).forEach(e=>{const s=rp(Q[e[0]]),t=rp(Q[e[1]]);const n=Math.hypot(s[0]-vp[0],s[1]-vp[1])<Math.hypot(t[0]-vp[0],t[1]-vp[1])?s:t;ln(R,n,vp,C[v.k],0.8,{'stroke-dasharray':'4 4',opacity:0.75})});dot(R,vp,5,C[v.k]);lbl(R,vp,'VP',8,-8)});
+R.appendChild(ns('polygon',{points:[4,5,7,6].map(i=>rp(Q[i]).join(',')).join(' '),fill:C[2],'fill-opacity':0.2,stroke:'none'}));
+E.forEach(e=>ln(R,rp(Q[e[0]]),rp(Q[e[1]]),C[e[2]],2));
+const ar=rp(Q[7]);dot(R,ar,3.5,null,'fill:var(--ink)');lbl(R,ar,'A′',6,-6,'fill:var(--ink);font-weight:700');
+document.getElementById('info').innerHTML=`<div><b>Family</b><span>${m.fam}</span></div><div><b>Projectors</b><span>${m.pr}</span></div><div><b>Principal face ∥ plane?</b><span>${m.fa}</span></div><div><b>Vanishing points</b><span>${m.vp}</span></div><div><b>Takeaway</b><span>${m.n}</span></div>`}
+az.addEventListener('input',()=>{document.getElementById('azv').textContent=az.value+'°';draw()});
+
+draw();
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw)}catch(e){}
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+</script>
+</body></html>

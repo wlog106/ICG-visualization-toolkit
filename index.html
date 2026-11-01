@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ICG Visualization Toolkit</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/common.css">
+<style>
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin-top:1.5rem}
+.card{display:block;min-width:0;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:1rem 1.1rem;color:var(--ink);text-decoration:none}
+.card:hover,.card:focus-visible{border-color:var(--z);outline:none}
+.card h3{font:700 1.1rem var(--display);margin:0 0 .3rem}
+.card p{margin:0;font-size:.92rem;color:var(--muted)}
+.tag{font:500 .72rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--z)}
+.ax{display:inline-flex;gap:4px;vertical-align:middle;margin-left:.4rem}.ax i{width:10px;height:10px;border-radius:2px;display:block}
+</style></head><body><main>
+<header>
+  <h1>ICG Visualization Toolkit<span class="ax" aria-hidden="true"><i style="background:var(--x)"></i><i style="background:var(--y)"></i><i style="background:var(--z)"></i></span></h1>
+  <p class="lede">Interactive visualizations for Introduction to Computer Graphics: viewing, projection, lighting, and the pipeline. Each tool is a standalone HTML page.</p>
+</header>
+<div class="grid">
+  <a class="card" href="tools/pipeline-map.html"><span class="tag">Overview</span><h3>Pipeline Exam Map</h3><p>Every pipeline stage, from model transform to frame buffer, with the exam topics that belong to it.</p></a>
+  <a class="card" href="tools/projection-explorer.html"><span class="tag">Ch3 · Viewing</span><h3>Projection Explorer</h3><p>A cube, its projectors, and the projection plane in 3D, next to the resulting image. Covers multiview, axonometric, oblique, and 1–3 point perspective.</p></a>
+  <a class="card" href="tools/phong-vectors.html"><span class="tag">Ch4 · Shading</span><h3>Phong Vectors</h3><p>n, l, r, v at a surface point, and which of them the ambient, diffuse, and specular terms use.</p></a>
+  <a class="card" href="tools/phong-sphere-lab.html"><span class="tag">Ch4 · Shading</span><h3>Phong Sphere Lab</h3><p>Toggle each reflection term, tune k and α, and compare flat, Gouraud, and Phong shading on a triangle mesh.</p></a>
+</div>
+</main></body></html>
