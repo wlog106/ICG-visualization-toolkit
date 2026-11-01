@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cohen–Sutherland Clipping</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/common.css">
+<style>:root{--text-primary:var(--ink);--text-secondary:var(--muted);--border:var(--rule);--bg-accent:var(--hl);--text-accent:var(--ink);--border-accent:var(--z);--font-mono:var(--mono)}</style>
+</head><body><main>
+<header>
+  <a class="back" href="../index.html">← ICG visualization toolkit</a>
+  <h1>Cohen–Sutherland Clipping</h1>
+  <p class="lede">Each endpoint gets a 4-bit outcode. Both 0000 means accept, a shared 1 bit means reject, and anything else means cut at one edge and test again. Step through the examples or drag the endpoints.</p>
+</header>
+<style>
+.cs{font-size:14px;color:var(--text-primary)}
+.cs .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}
+.cs .lb{font-size:12px;color:var(--text-secondary);width:58px}
+.cs button{font-size:13px;padding:5px 10px}
+.cs button.on{background:var(--bg-accent);color:var(--text-accent);border-color:var(--border-accent)}
+.cs .svgw{overflow-x:auto}.cs .svgw svg{display:block;width:100%;min-width:560px;touch-action:none}
+.cs ol{margin:6px 0 0;padding-left:1.4rem;font-size:13px;line-height:1.6;color:var(--text-secondary)}
+.cs ol li b{color:var(--text-primary);font-weight:500}
+.cs code{font-family:var(--font-mono,ui-monospace,monospace);font-size:12.5px}
+.cs .hint{font-size:12px;color:var(--text-secondary)}
+</style>
+<div class="cs">
+<h2 class="sr-only" style="position:absolute;left:-9999px">Interactive Cohen–Sutherland line clipping with outcodes, step-by-step log and draggable endpoints.</h2>
+<div class="row"><span class="lb">Examples</span><span id="pre"></span></div>
+<div class="row"><span class="lb">Run</span><button type="button" id="step">Next step ▶</button><button type="button" id="all">Run to end</button><button type="button" id="reset">Reset line</button><span class="hint">Drag A and B to make your own line.</span></div>
+<div class="svgw"><svg viewBox="0 0 680 330" id="sv" role="img"><title>Cohen–Sutherland clipping window</title><desc>A clipping window in the middle, the nine outcode regions around it, and a line from A to B being clipped.</desc><g id="G"></g></svg></div>
+<ol id="log"></ol>
+</div>
+<script>
+const NS='http://www.w3.org/2000/svg',$=id=>document.getElementById(id);
+const X0=230,X1=450,Y0=105,Y1=225;
+const PRE={inside:{n:'Fully inside',a:[270,140],b:[410,200]},reject:{n:'Trivial reject',a:[90,40],b:[330,60]},one:{n:'One clip',a:[300,170],b:[590,290]},two:{n:'Two clips',a:[90,200],b:[610,130]},tricky:{n:'Clip, then reject',a:[140,140],b:[290,50]}};
+let pk='two',A0,B0,A,B,log=[],done=false;
+const code=p=>(p[1]<Y0?8:0)|(p[1]>Y1?4:0)|(p[0]>X1?2:0)|(p[0]<X0?1:0);
+const bits=c=>c.toString(2).padStart(4,'0');
+const nm=['left (x = x_min)','right (x = x_max)','bottom (y = y_min)','top (y = y_max)'];
+function load(k){pk=k;A0=PRE[k].a.slice();B0=PRE[k].b.slice();reset()}
+function reset(){A=A0.slice();B=B0.slice();log=[];done=false;draw()}
+function step(){if(done)return;const ca=code(A),cb=code(B);
+ if((ca|cb)===0){log.push(`A = <code>${bits(ca)}</code>, B = <code>${bits(cb)}</code>. <b>Both 0000 → trivially accept.</b> Draw the line. Done.`);done=true;return}
+ if(ca&cb){log.push(`A = <code>${bits(ca)}</code>, B = <code>${bits(cb)}</code>. AND = <code>${bits(ca&cb)}</code> ≠ 0000 → <b>both ends are outside the same edge → trivially reject.</b> Done.`);done=true;return}
+ const useA=ca!==0,c=useA?ca:cb,P=useA?A:B,Q=useA?B:A;let bit=8,ix;
+ for(const bt of[8,4,2,1])if(c&bt){bit=bt;break}
+ if(bit===8||bit===4){const y=bit===8?Y0:Y1;ix=[P[0]+(Q[0]-P[0])*(y-P[1])/(Q[1]-P[1]),y]}else{const x=bit===2?X1:X0;ix=[x,P[1]+(Q[1]-P[1])*(x-P[0])/(Q[0]-P[0])]}
+ const edge=nm[[1,2,4,8].indexOf(bit)];
+ log.push(`A = <code>${bits(ca)}</code>, B = <code>${bits(cb)}</code>. AND = <code>0000</code> but not both 0 → <b>can't decide.</b> ${useA?'A':'B'} is outside, so intersect the line with the ${edge} edge and move ${useA?'A':'B'} there.`);
+ if(useA)A=ix;else B=ix;}
+function draw(){const G=$('G');G.innerHTML='';
+ const el=(t,a)=>{const x=document.createElementNS(NS,t);for(const k in a)x.setAttribute(k,a[k]);G.appendChild(x);return x};
+ const tx=(x,y,s,c,st)=>{const e=el('text',{x,y,class:c||'ts'});if(st)e.setAttribute('style',st);e.textContent=s};
+ el('rect',{x:X0,y:Y0,width:X1-X0,height:Y1-Y0,fill:'#7F77DD','fill-opacity':.12,stroke:'#7F77DD','stroke-width':1.5});
+ [[X0,0,X0,330],[X1,0,X1,330],[0,Y0,680,Y0],[0,Y1,680,Y1]].forEach(l=>el('line',{x1:l[0],y1:l[1],x2:l[2],y2:l[3],stroke:'#888780','stroke-width':0.6,'stroke-dasharray':'3 4'}));
+ const cx=[X0/2,(X0+X1)/2,(X1+680)/2],cy=[Y0/2,(Y0+Y1)/2,(Y1+330)/2];
+ for(let i=0;i<3;i++)for(let j=0;j<3;j++){const c=(i===0?8:i===2?4:0)|(j===0?1:j===2?2:0);tx(cx[j]-16,cy[i]+(i===1?-40:i===0?-34:30),bits(c),'ts',i===1&&j===1?'fill:#534AB7;font-weight:500':'')}
+ tx(X0+6,Y1-8,'window','ts','fill:#534AB7');
+ el('line',{x1:A0[0],y1:A0[1],x2:B0[0],y2:B0[1],stroke:'#888780','stroke-width':1.5,'stroke-dasharray':'5 4'});
+ const ok=done&&!(code(A)&code(B))&&!(code(A)|code(B));const rej=done&&!ok;
+ if(!rej)el('line',{x1:A[0],y1:A[1],x2:B[0],y2:B[1],stroke:ok?'#1D9E75':'#D85A30','stroke-width':3,'stroke-linecap':'round'});
+ if(rej)tx(250,312,'Rejected: nothing inside the window is drawn','ts','fill:#A32D2D');
+ if(ok)tx(250,312,'Accepted: the green part is what gets drawn','ts','fill:#0F6E56');
+ [[A0,'A',0],[B0,'B',1]].forEach(([p,l,i])=>{const g=el('circle',{cx:p[0],cy:p[1],r:9,fill:'#D85A30','fill-opacity':.25,stroke:'#D85A30','stroke-width':1.5,style:'cursor:grab'});g.dataset.i=i;tx(p[0]+12,p[1]-10,l+' '+bits(code(p)),'th')});
+ if(A[0]!==A0[0]||A[1]!==A0[1]){el('circle',{cx:A[0],cy:A[1],r:4,fill:'#EF9F27'});tx(A[0]+8,A[1]+16,"A'",'ts')}
+ if(B[0]!==B0[0]||B[1]!==B0[1]){el('circle',{cx:B[0],cy:B[1],r:4,fill:'#EF9F27'});tx(B[0]+8,B[1]+16,"B'",'ts')}
+ $('log').innerHTML=log.map(s=>'<li>'+s+'</li>').join('')||'<li>Press <b>Next step</b>. Each endpoint gets a 4-bit code: <code>top bottom right left</code>. A bit is 1 when the point is outside that edge.</li>';
+ document.querySelectorAll('#pre button').forEach(b=>b.classList.toggle('on',b.dataset.k===pk));}
+Object.keys(PRE).forEach(k=>{const b=document.createElement('button');b.type='button';b.textContent=PRE[k].n;b.dataset.k=k;b.onclick=()=>load(k);$('pre').appendChild(b);$('pre').append(' ')});
+$('step').onclick=()=>{step();draw()};$('all').onclick=()=>{let g=0;while(!done&&g++<10)step();draw()};$('reset').onclick=reset;
+const sv=$('sv');let drag=null;
+const pt=e=>{const r=sv.getBoundingClientRect();return[(e.clientX-r.left)*680/r.width,(e.clientY-r.top)*330/r.height]};
+sv.addEventListener('pointerdown',e=>{if(e.target.dataset&&e.target.dataset.i!==undefined){drag=+e.target.dataset.i;sv.setPointerCapture(e.pointerId)}});
+sv.addEventListener('pointermove',e=>{if(drag===null)return;const p=pt(e).map((v,i)=>Math.max(8,Math.min(i?322:672,v)));if(drag===0)A0=p;else B0=p;pk='';A=A0.slice();B=B0.slice();log=[];done=false;draw()});
+sv.addEventListener('pointerup',()=>{drag=null});
+load('two');
+</script>
+
+</main></body></html>

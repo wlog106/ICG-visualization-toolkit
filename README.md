@@ -12,6 +12,7 @@ Interactive visualizations for an Introduction to Computer Graphics course. Ever
 | [Perspective Division](tools/perspective-division.html) | Ch3 Viewing | What w is: the matrix's bottom row copies −z into w, and ÷w turns height into height ÷ distance, with live (x, y, z, w) values |
 | [Phong Vectors](tools/phong-vectors.html) | Ch4 Shading | n, l, r, v at a surface point, and the three Phong reflection terms |
 | [Orbit Animation Builder](tools/orbit-animation.html) | Ch2 Transformations | The midterm animation problem: build `T·Ry(u)·T·Ry(90)` right to left, see what wrong orders do, attach a rolling second model, and view through its eye with `Inv(M)` |
+| [Cohen–Sutherland Clipping](tools/cohen-sutherland.html) | Ch6 Clipping | 4-bit outcodes, trivial accept and reject, and iterative edge clipping, with a step log and draggable endpoints |
 | [Phong Sphere Lab](tools/phong-sphere-lab.html) | Ch4 Shading | A software-rasterized sphere. Toggle ambient, diffuse, and specular, tune k_a, k_d, k_s, and α, and switch between flat, Gouraud, and Phong shading |
 
 ## Running
